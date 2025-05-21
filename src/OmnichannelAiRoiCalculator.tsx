@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ChangeEvent, MouseEvent } from 'react'; // Added ChangeEvent, MouseEvent
+import React, { useState, useEffect, ChangeEvent, MouseEvent } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // --- Type Definitions for Props ---
@@ -10,7 +10,7 @@ interface CardProps {
 interface CardHeaderProps {
   children: React.ReactNode;
   className?: string;
-  onClick?: (event: MouseEvent<HTMLDivElement>) => void; // Added event type
+  onClick?: (event: MouseEvent<HTMLDivElement>) => void;
 }
 
 interface CardTitleProps {
@@ -27,10 +27,10 @@ interface RangeSliderProps {
   label: string;
   id: string;
   value: number;
-  onChange: (event: ChangeEvent<HTMLInputElement>) => void; // Added event type
-  min: string | number; // Allow string for HTML attribute compatibility
-  max: string | number; // Allow string for HTML attribute compatibility
-  step: string | number; // Allow string for HTML attribute compatibility
+  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  min: string | number;
+  max: string | number;
+  step: string | number;
   unit?: string;
   helpText?: string;
 }
@@ -39,13 +39,11 @@ interface LabelWithTooltipProps {
     label: string;
     tooltipText: string;
     labelClasses?: string;
-    // valueClasses is not used in the current implementation, so it can be optional or removed
-    // valueClasses?: string; 
 }
 
 // --- Reusable UI Components ---
 const Card: React.FC<CardProps> = ({ children, className }) => (
-  <div className={`bg-white shadow rounded-lg ${className}`}>{children}</div>
+  <div className={`bg-white shadow rounded-lg ${className || ''}`}>{children}</div>
 );
 
 const CardHeader: React.FC<CardHeaderProps> = ({ children, className, onClick }) => (
@@ -68,7 +66,9 @@ const RangeSlider: React.FC<RangeSliderProps> = ({ label, id, value, onChange, m
   const handleNumberInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     let newValue = Number(e.target.value);
     if (isNaN(newValue)) { 
-        onChange({ target: { value: String(numericValue) } } as ChangeEvent<HTMLInputElement>); 
+        // If input is not a number, revert to current numericValue by creating a synthetic event
+        const syntheticEvent = { target: { value: String(numericValue) } } as ChangeEvent<HTMLInputElement>;
+        onChange(syntheticEvent); 
         return;
     }
     if (min !== undefined && newValue < Number(min)) {
@@ -77,24 +77,16 @@ const RangeSlider: React.FC<RangeSliderProps> = ({ label, id, value, onChange, m
     if (max !== undefined && newValue > Number(max)) {
         newValue = Number(max);
     }
-    onChange({ target: { value: String(newValue) } } as ChangeEvent<HTMLInputElement>); 
+     // Create a synthetic event object for the onChange handler of the parent
+    const syntheticEvent = { target: { value: String(newValue) } } as ChangeEvent<HTMLInputElement>;
+    onChange(syntheticEvent); 
   };
   
-  let displayValueFormatted = '';
-  if (unit.includes('$')) {
-    displayValueFormatted = safeLocaleString(numericValue, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  } else if (unit === '%') {
-    displayValueFormatted = safeLocaleString(numericValue, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  } else {
-    const numericStep = Number(step);
-    if (Number.isInteger(numericStep) || Number.isInteger(numericValue)) {
-        displayValueFormatted = safeLocaleString(numericValue, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    } else {
-        const decimalPlaces = (String(step).split('.')[1] || '').length || 1;
-        displayValueFormatted = safeLocaleString(numericValue, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces });
-    }
-  }
+  let displayValueForInput = String(numericValue); // Default to string for input value
 
+  // The value prop for input type="number" should be a string for controlled components if you allow temporary non-numeric input,
+  // or always a number if you strictly control it. Given handleNumberInputChange, String(numericValue) is safer.
+  
   return (
     <div className="mb-5"> 
       <div className="flex justify-between items-center mb-1">
@@ -118,7 +110,7 @@ const RangeSlider: React.FC<RangeSliderProps> = ({ label, id, value, onChange, m
           <input 
             type="number"
             id={id + '-number'}
-            value={String(numericValue)} // Input type number expects string value for controlled component
+            value={displayValueForInput} 
             onChange={handleNumberInputChange} 
             min={String(min)}
             max={String(max)}
@@ -212,7 +204,6 @@ const safeLocaleString = (value: number, options: Intl.NumberFormatOptions = {},
   return String(fallback);
 };
 
-// --- Type definition for the results state ---
 interface CalculationResults {
   humanVoiceCostMonthly?: number;
   voiceRevenueHuman?: number;
@@ -256,11 +247,47 @@ interface CalculationResults {
   estimatedTotalMonthlyTextMessagesProcessedByAI?: number;
 }
 
+type IndustryPreset = {
+  avgRevenuePerSale: number;
+  monthlyVoiceCalls: number;
+  avgMissedVoiceCallsDaily: number;
+  avgCallDurationHuman: number;
+  monthlyTextInteractions: number;
+  avgTextInteractionTimeHuman: number;
+  humanHourlyCost: number;
+  avgMessagesPerTextConversation: number;
+  voiceLeadQualificationRate: number;
+  voiceAppointmentBookingRate: number;
+  voiceAppointmentShowUpRate: number;
+  voiceAppointmentToSaleRate: number;
+  textLeadQualificationRate: number;
+  textAppointmentBookingRate: number;
+  textAppointmentShowUpRate: number;
+  textAppointmentToSaleRate: number;
+  aiAutonomyVoice: number;
+  aiAutonomyText: number;
+  aiVoiceBookingRateImprovement: number;
+  aiVoiceShowUpRateImprovement: number;
+  aiTextBookingRateImprovement: number;
+  aiTextShowUpRateImprovement: number;
+  aiHandlingPercentage: number;
+  operatingDaysPerMonth: number;
+  basicAiSetupFee: number;
+  basicAiMonthlyCost: number;
+  basicAiPerMinuteVoiceCost: number;
+  basicAiIncludedTextInteractions: number;
+  basicAiOverageTextCost: number;
+  enterpriseAiSetupFee: number;
+  enterpriseAiMonthlyCost: number;
+  enterpriseAiPerMinuteVoiceCost: number;
+  enterpriseAiIncludedTextInteractions: number;
+  enterpriseAiOverageTextCost: number;
+};
 
-// --- Main Omnichannel AI ROI Calculator Component ---
+
 function OmnichannelAiRoiCalculator() {
   const [industry, setIndustry] = useState<string>('general');
-  const industryPresets: Record<string, any> = { // Using 'any' for preset values for brevity, ideally define a strict type
+  const industryPresets: Record<string, IndustryPreset> = { 
     general: { 
         avgRevenuePerSale: 500, monthlyVoiceCalls: 300, avgMissedVoiceCallsDaily: 5, avgCallDurationHuman: 10,
         monthlyTextInteractions: 700, avgTextInteractionTimeHuman: 8, humanHourlyCost: 30,
@@ -323,7 +350,6 @@ function OmnichannelAiRoiCalculator() {
     }
   };
 
-  // Initialize state with values from the 'general' preset
   const [avgRevenuePerSale, setAvgRevenuePerSale] = useState<number>(industryPresets.general.avgRevenuePerSale);
   const [operatingDaysPerMonth, setOperatingDaysPerMonth] = useState<number>(industryPresets.general.operatingDaysPerMonth);
   const [monthlyVoiceCalls, setMonthlyVoiceCalls] = useState<number>(industryPresets.general.monthlyVoiceCalls);
@@ -364,11 +390,10 @@ function OmnichannelAiRoiCalculator() {
   const [aiTextBookingRateImprovement, setAiTextBookingRateImprovement] = useState<number>(10); 
   const [aiTextShowUpRateImprovement, setAiTextShowUpRateImprovement] = useState<number>(10); 
   
-  const [results, setResults] = useState<CalculationResults>({}); // Typed the results state
+  const [results, setResults] = useState<CalculationResults>({});
   const [isInsightsOpen, setIsInsightsOpen] = useState<boolean>(false);
   const [isQualitativeOpen, setIsQualitativeOpen] = useState<boolean>(false);
 
-  // --- Event Handlers ---
   const handleSliderChange = (setter: React.Dispatch<React.SetStateAction<number>>) => (e: ChangeEvent<HTMLInputElement>) => {
     setter(Number(e.target.value));
   };
@@ -376,7 +401,6 @@ function OmnichannelAiRoiCalculator() {
     setter(e.target.value);
   };
 
- // --- Effects ---
  useEffect(() => {
     const preset = industryPresets[industry] || industryPresets.general;
     setAvgRevenuePerSale(preset.avgRevenuePerSale);
@@ -416,7 +440,6 @@ function OmnichannelAiRoiCalculator() {
     setEnterpriseAiOverageTextCost(preset.enterpriseAiOverageTextCost || 0.03);
   }, [industry]);
 
-  // Effect for main ROI Calculations.
   useEffect(() => {
     const N_avgRevenuePerSale = Number(avgRevenuePerSale) || 0;
     const N_operatingDaysPerMonth = Number(operatingDaysPerMonth) || 0;
@@ -762,7 +785,7 @@ function OmnichannelAiRoiCalculator() {
                     <div>
                       <div className="text-sm font-medium text-gray-600 mb-1">Potential Annual Net Gain (Year 1)</div>
                       <div className={`text-4xl font-extrabold ${results.annualNetGainY1 >= 0 ? 'text-lime-600' : 'text-red-600'}`}>
-                        {safeLocaleString(results.annualNetGainY1, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
+                        {safeLocaleString(results.annualNetGainY1 || 0, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
                       </div>
                       <p className="text-xs text-gray-500 mt-1">(Annual Labor Savings + Added Revenue - Annual AI Cost Y1)</p>
                     </div>
@@ -770,24 +793,24 @@ function OmnichannelAiRoiCalculator() {
                        <div>
                          <div className="text-xs font-medium text-gray-600 mb-1">Estimated Annual ROI (Y1)</div>
                          <div className={`text-3xl font-bold ${results.annualROI >= 0 ? 'text-lime-600' : 'text-red-600'}`}>
-                           {isFinite(results.annualROI) ? safeLocaleString(results.annualROI, { style: 'percent', maximumFractionDigits: 0 }) : (results.netMonthlyBenefitY1 > 0 ? '∞%' : 'N/A')}
+                           {isFinite(results.annualROI || 0) ? safeLocaleString(results.annualROI || 0, { style: 'percent', maximumFractionDigits: 0 }) : ( (results.netMonthlyBenefitY1 || 0) > 0 ? '∞%' : 'N/A')}
                          </div>
                        </div>
                        <div>
                          <div className="text-xs font-medium text-gray-600 mb-1">Payback Period</div>
                          <div className="text-3xl font-bold text-gray-700"> 
-                           {formatPaybackPeriod(results.paybackPeriodMonths)}
+                           {formatPaybackPeriod(results.paybackPeriodMonths || Infinity)}
                          </div>
                        </div>
                     </div>
                      <div className="text-xs text-gray-500 pt-2">
                         Driven by:
-                        <span className={`font-medium ${results.annualCostSavings >= 0 ? 'text-lime-600' : 'text-red-600'} mx-1`}>
-                            {safeLocaleString(results.annualCostSavings, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
+                        <span className={`font-medium ${(results.annualCostSavings || 0) >= 0 ? 'text-lime-600' : 'text-red-600'} mx-1`}>
+                            {safeLocaleString(results.annualCostSavings || 0, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
                         </span>
                         ann. labor savings &
-                        <span className={`font-medium ${results.annualRevenueIncrease >= 0 ? 'text-lime-600' : 'text-red-600'} ml-1`}>
-                            {safeLocaleString(results.annualRevenueIncrease, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
+                        <span className={`font-medium ${(results.annualRevenueIncrease || 0) >= 0 ? 'text-lime-600' : 'text-red-600'} ml-1`}>
+                            {safeLocaleString(results.annualRevenueIncrease || 0, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
                         </span>
                         ann. added revenue.
                      </div>
@@ -813,11 +836,11 @@ function OmnichannelAiRoiCalculator() {
                           <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0"/>
                           <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                           <YAxis tickFormatter={(value) => `$${safeLocaleString(value, {style: 'currency', currency: 'USD', maximumFractionDigits: 0})}`} tick={{ fontSize: 10 }} />
-                          <Tooltip formatter={(value) => [`$${safeLocaleString(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, null]} cursor={{ fill: 'rgba(230, 230, 230, 0.3)' }} />
+                          <Tooltip formatter={(value: number) => [`$${safeLocaleString(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, null]} cursor={{ fill: 'rgba(230, 230, 230, 0.3)' }} />
                           <Legend wrapperStyle={{ fontSize: "12px", paddingTop: '10px' }} />
                           <Bar dataKey="Current Human Cost" fill="#4B5563" radius={[4, 4, 0, 0]} /> 
                           <Bar dataKey="AI Cost (Y1 Eff.)" fill="#A3E635" radius={[4, 4, 0, 0]} /> 
-                          {results.netBenefitChart > 0 && <Bar dataKey="Net Monthly Benefit (Y1)" fill="#84CC16" radius={[4, 4, 0, 0]} />} 
+                          {(results.netBenefitChart || 0) > 0 && <Bar dataKey="Net Monthly Benefit (Y1)" fill="#84CC16" radius={[4, 4, 0, 0]} />} 
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -827,27 +850,27 @@ function OmnichannelAiRoiCalculator() {
                 <Card>
                     <CardHeader><CardTitle>Monthly Financial Impact (AI vs. Current)</CardTitle></CardHeader>
                     <CardContent className="space-y-2 text-sm">
-                        <div className="flex justify-between"><span>Total Human Labor Cost (Current):</span> <span className="font-medium">{safeLocaleString(results.totalHumanCostMonthly, {style:'currency', currency:'USD'})}</span></div>
-                         <div className="flex justify-between"><span>Est. Revenue Lost from Missed Calls (Current):</span> <span className="font-medium text-red-600">{safeLocaleString(results.revenueLostFromMissedCalls, {style:'currency', currency:'USD'})}</span></div>
+                        <div className="flex justify-between"><span>Total Human Labor Cost (Current):</span> <span className="font-medium">{safeLocaleString(results.totalHumanCostMonthly || 0, {style:'currency', currency:'USD'})}</span></div>
+                         <div className="flex justify-between"><span>Est. Revenue Lost from Missed Calls (Current):</span> <span className="font-medium text-red-600">{safeLocaleString(results.revenueLostFromMissedCalls || 0, {style:'currency', currency:'USD'})}</span></div>
                         <hr className="my-2"/>
-                        <div className="flex justify-between"><span>Effective AI Monthly Cost (Year 1):</span> <span className="font-medium">{safeLocaleString(results.effectiveTotalAiMonthlyCostY1, {style:'currency', currency:'USD'})}</span></div>
-                        <div className="flex justify-between"><span>Projected Human Labor Cost (With AI):</span> <span className="font-medium">{safeLocaleString(results.totalHumanCostWithAI, {style:'currency', currency:'USD'})}</span></div>
+                        <div className="flex justify-between"><span>Effective AI Monthly Cost (Year 1):</span> <span className="font-medium">{safeLocaleString(results.effectiveTotalAiMonthlyCostY1 || 0, {style:'currency', currency:'USD'})}</span></div>
+                        <div className="flex justify-between"><span>Projected Human Labor Cost (With AI):</span> <span className="font-medium">{safeLocaleString(results.totalHumanCostWithAI || 0, {style:'currency', currency:'USD'})}</span></div>
                         <hr className="my-2"/>
                         <div className="flex justify-between">
                             <span className="text-lime-700">Direct Labor Cost Savings:</span> 
-                            <span className={`font-medium ${results.totalLaborCostSavingsMonthly >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{safeLocaleString(results.totalLaborCostSavingsMonthly, {style:'currency', currency:'USD'})}</span>
+                            <span className={`font-medium ${(results.totalLaborCostSavingsMonthly || 0) >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{safeLocaleString(results.totalLaborCostSavingsMonthly || 0, {style:'currency', currency:'USD'})}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-lime-700">Potential Added Revenue (Incl. Captured Calls):</span> 
-                            <span className={`font-medium ${results.totalRevenueIncreaseMonthly >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{results.totalRevenueIncreaseMonthly >= 0 ? '+' : ''}{safeLocaleString(results.totalRevenueIncreaseMonthly, {style:'currency', currency:'USD'})}</span>
+                            <span className={`font-medium ${(results.totalRevenueIncreaseMonthly || 0) >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{ (results.totalRevenueIncreaseMonthly || 0) >= 0 ? '+' : ''}{safeLocaleString(results.totalRevenueIncreaseMonthly || 0, {style:'currency', currency:'USD'})}</span>
                         </div>
                         <div className="flex justify-between border-t pt-2 mt-2">
                             <LabelWithTooltip label="Total Monthly Benefit" tooltipText="Before AI Cost" labelClasses="text-md font-semibold text-gray-700" />
-                            <span className={`font-semibold text-lg ${results.totalMonthlyGain >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{safeLocaleString(results.totalMonthlyGain, {style:'currency', currency:'USD'})}</span>
+                            <span className={`font-semibold text-lg ${(results.totalMonthlyGain || 0) >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{safeLocaleString(results.totalMonthlyGain || 0, {style:'currency', currency:'USD'})}</span>
                         </div>
                         <div className="flex justify-between">
                             <LabelWithTooltip label="Net Monthly Benefit" tooltipText="After AI Cost (Year 1)" labelClasses="text-md font-semibold text-gray-700" />
-                            <span className={`font-semibold text-lg ${results.netMonthlyBenefitY1 >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{safeLocaleString(results.netMonthlyBenefitY1, {style:'currency', currency:'USD'})}</span>
+                            <span className={`font-semibold text-lg ${(results.netMonthlyBenefitY1 || 0) >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{safeLocaleString(results.netMonthlyBenefitY1 || 0, {style:'currency', currency:'USD'})}</span>
                         </div>
                          <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">{getScenarioInterpretation()}</p>
                     </CardContent>
@@ -856,17 +879,17 @@ function OmnichannelAiRoiCalculator() {
                 <Card>
                   <CardHeader><CardTitle>AI Agent Cost Breakdown</CardTitle></CardHeader>
                   <CardContent className="bg-gray-50 p-4 rounded-b-lg space-y-2 text-sm">
-                    <div className="flex justify-between"><span>One-time Setup Fee:</span> <span className="font-medium">{safeLocaleString(results.aiSetupFee, {style:'currency', currency:'USD'})}</span></div>
-                    <div className="flex justify-between"><span>AI Monthly Platform Base Cost:</span> <span className="font-medium">{safeLocaleString(results.aiMonthlyBaseCost, {style:'currency', currency:'USD'})}</span></div>
-                    <div className="flex justify-between"><span>Est. AI Monthly Voice Usage Cost:</span> <span className="font-medium">{safeLocaleString(results.aiVoiceUsageCostMonthly, {style:'currency', currency:'USD'})}</span></div>
-                    <div className="flex justify-between"><span>Est. AI Monthly Text Usage Cost:</span> <span className="font-medium">{safeLocaleString(results.aiTextUsageCostMonthly, {style:'currency', currency:'USD'})}</span></div>
+                    <div className="flex justify-between"><span>One-time Setup Fee:</span> <span className="font-medium">{safeLocaleString(results.aiSetupFee || 0, {style:'currency', currency:'USD'})}</span></div>
+                    <div className="flex justify-between"><span>AI Monthly Platform Base Cost:</span> <span className="font-medium">{safeLocaleString(results.aiMonthlyBaseCost || 0, {style:'currency', currency:'USD'})}</span></div>
+                    <div className="flex justify-between"><span>Est. AI Monthly Voice Usage Cost:</span> <span className="font-medium">{safeLocaleString(results.aiVoiceUsageCostMonthly || 0, {style:'currency', currency:'USD'})}</span></div>
+                    <div className="flex justify-between"><span>Est. AI Monthly Text Usage Cost:</span> <span className="font-medium">{safeLocaleString(results.aiTextUsageCostMonthly || 0, {style:'currency', currency:'USD'})}</span></div>
                     <div className="flex justify-between border-t pt-2 mt-2">
                         <span className="font-semibold">Total AI Recurring Monthly Cost:</span> 
-                        <span className="font-semibold text-lime-600">{safeLocaleString(results.totalAiPlatformMonthlyCost, {style:'currency', currency:'USD'})}</span>
+                        <span className="font-semibold text-lime-600">{safeLocaleString(results.totalAiPlatformMonthlyCost || 0, {style:'currency', currency:'USD'})}</span>
                     </div>
                     <div className="flex justify-between">
                         <LabelWithTooltip label="Effective AI Monthly Cost (Year 1)" tooltipText="Recurring Monthly + Setup Fee/12" labelClasses="font-semibold" />
-                        <span className="font-semibold text-lime-600">{safeLocaleString(results.effectiveTotalAiMonthlyCostY1, {style:'currency', currency:'USD'})}</span>
+                        <span className="font-semibold text-lime-600">{safeLocaleString(results.effectiveTotalAiMonthlyCostY1 || 0, {style:'currency', currency:'USD'})}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -874,14 +897,14 @@ function OmnichannelAiRoiCalculator() {
                  <Card>
                   <CardHeader><CardTitle>Monthly Interaction Analysis</CardTitle></CardHeader>
                   <CardContent className="bg-gray-50 p-4 rounded-b-lg space-y-2 text-sm">
-                    <div className="flex justify-between"><span>Total Voice Calls Entered:</span> <span className="font-medium">{safeLocaleString(results.monthlyVoiceCalls, {maximumFractionDigits:0})}</span></div>
-                    <div className="flex justify-between"><span>Total Text Interactions (Conversations) Entered:</span> <span className="font-medium">{safeLocaleString(results.monthlyTextInteractions, {maximumFractionDigits:0})}</span></div>
+                    <div className="flex justify-between"><span>Total Voice Calls Entered:</span> <span className="font-medium">{safeLocaleString(results.monthlyVoiceCalls || 0, {maximumFractionDigits:0})}</span></div>
+                    <div className="flex justify-between"><span>Total Text Interactions (Conversations) Entered:</span> <span className="font-medium">{safeLocaleString(results.monthlyTextInteractions || 0, {maximumFractionDigits:0})}</span></div>
                     <hr className="my-1"/>
-                    <div className="flex justify-between"><span>Est. Voice Calls Handled Autonomously by AI:</span> <span className="font-medium text-lime-600">{safeLocaleString(results.interactionsHandledByAI_autonomously_voice, {maximumFractionDigits:0})}</span></div>
-                    <div className="flex justify-between"><span>Est. Text Interactions (Conversations) Handled Autonomously by AI:</span> <span className="font-medium text-lime-600">{safeLocaleString(results.interactionsHandledByAI_autonomously_text, {maximumFractionDigits:0})}</span></div>
+                    <div className="flex justify-between"><span>Est. Voice Calls Handled Autonomously by AI:</span> <span className="font-medium text-lime-600">{safeLocaleString(results.interactionsHandledByAI_autonomously_voice || 0, {maximumFractionDigits:0})}</span></div>
+                    <div className="flex justify-between"><span>Est. Text Interactions (Conversations) Handled Autonomously by AI:</span> <span className="font-medium text-lime-600">{safeLocaleString(results.interactionsHandledByAI_autonomously_text || 0, {maximumFractionDigits:0})}</span></div>
                     <div className="flex justify-between">
                         <span>Est. Total Individual Text Messages Processed by AI:</span> 
-                        <span className="font-medium text-lime-600">{safeLocaleString(results.estimatedTotalMonthlyTextMessagesProcessedByAI, {maximumFractionDigits:0})}</span>
+                        <span className="font-medium text-lime-600">{safeLocaleString(results.estimatedTotalMonthlyTextMessagesProcessedByAI || 0, {maximumFractionDigits:0})}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -904,20 +927,20 @@ function OmnichannelAiRoiCalculator() {
                             <p>{getScenarioInterpretation()}</p>
                             <div className="bg-white p-3 rounded shadow-sm border border-gray-200">
                                 <p className="font-medium text-gray-800 mb-1">Potential Annual Net Gain (Year 1):</p>
-                                <p className={`text-xl font-semibold ${results.annualNetGainY1 >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{safeLocaleString(results.annualNetGainY1, { style: 'currency', currency: 'USD' })}</p>
+                                <p className={`text-xl font-semibold ${(results.annualNetGainY1 || 0) >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{safeLocaleString(results.annualNetGainY1 || 0, { style: 'currency', currency: 'USD' })}</p>
                                 <p className="text-xs text-gray-500 mt-1">(Annual Labor Savings + Annual Added Revenue - Total Annual AI Cost Y1)</p>
                             </div>
                             <div className="bg-white p-3 rounded shadow-sm border border-gray-200">
                                 <p className="font-medium text-gray-800 mb-1">Potential Annual Labor Cost Savings:</p>
-                                <p className={`text-xl font-semibold ${results.annualCostSavings >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{safeLocaleString(results.annualCostSavings, { style: 'currency', currency: 'USD' })}</p>
+                                <p className={`text-xl font-semibold ${(results.annualCostSavings || 0) >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{safeLocaleString(results.annualCostSavings || 0, { style: 'currency', currency: 'USD' })}</p>
                             </div>
                              <div className="bg-white p-3 rounded shadow-sm border border-gray-200">
                                 <p className="font-medium text-gray-800 mb-1">Potential Annual Added Revenue (Incl. Captured Calls):</p>
-                                <p className={`text-xl font-semibold ${results.annualRevenueIncrease >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{safeLocaleString(results.annualRevenueIncrease, { style: 'currency', currency: 'USD' })}</p>
+                                <p className={`text-xl font-semibold ${(results.annualRevenueIncrease || 0) >= 0 ? 'text-lime-600' : 'text-red-600'}`}>{safeLocaleString(results.annualRevenueIncrease || 0, { style: 'currency', currency: 'USD' })}</p>
                             </div>
-                            {(results.paybackPeriodMonths > 0 && isFinite(results.paybackPeriodMonths)) && ( <p>The initial AI setup fee of <strong className="text-gray-700">{safeLocaleString(results.aiSetupFee, { style: 'currency', currency: 'USD', maximumFractionDigits:0 })}</strong> is estimated to be paid back within <strong className="text-lime-600">{formatPaybackPeriod(results.paybackPeriodMonths)}</strong>.</p>)}
-                            {results.paybackPeriodMonths === 0 && ( <p>With positive net benefits and no (or negligible) setup fee, the return is effectively immediate.</p>)}
-                            {(!isFinite(results.paybackPeriodMonths) && results.netMonthlyBenefitY1 <=0 && results.aiSetupFee > 0) && ( <p className="text-red-600">Based on current inputs, the initial setup fee is not projected to be paid back via Year 1 net monthly benefits.</p>)}
+                            {( (results.paybackPeriodMonths || Infinity) > 0 && isFinite(results.paybackPeriodMonths || Infinity)) && ( <p>The initial AI setup fee of <strong className="text-gray-700">{safeLocaleString(results.aiSetupFee || 0, { style: 'currency', currency: 'USD', maximumFractionDigits:0 })}</strong> is estimated to be paid back within <strong className="text-lime-600">{formatPaybackPeriod(results.paybackPeriodMonths || Infinity)}</strong>.</p>)}
+                            {(results.paybackPeriodMonths === 0) && ( <p>With positive net benefits and no (or negligible) setup fee, the return is effectively immediate.</p>)}
+                            {(!isFinite(results.paybackPeriodMonths || Infinity) && (results.netMonthlyBenefitY1 || 0) <=0 && (results.aiSetupFee || 0) > 0) && ( <p className="text-red-600">Based on current inputs, the initial setup fee is not projected to be paid back via Year 1 net monthly benefits.</p>)}
                         </CardContent>
                     )}
                 </Card>
