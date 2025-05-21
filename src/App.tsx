@@ -1,6 +1,6 @@
 // src/App.tsx
 import OmnichannelAiRoiCalculator from './OmnichannelAiRoiCalculator';
-import './App.css'; // Or './index.css' if that's your main Tailwind CSS import
+import './index.css' if that's your main Tailwind CSS import
 
 function App() {
   return (
