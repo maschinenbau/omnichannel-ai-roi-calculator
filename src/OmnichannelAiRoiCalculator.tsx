@@ -95,6 +95,7 @@ const RangeSlider: React.FC<RangeSliderProps> = ({ label, id, value, onChange, m
         valueForInput = numericValue.toFixed(decimalPlaces);
      }
   }
+  // Removed unused 'displayValueFormatted' variable
   
   return (
     <div className="mb-5"> 
@@ -119,7 +120,7 @@ const RangeSlider: React.FC<RangeSliderProps> = ({ label, id, value, onChange, m
           <input 
             type="number"
             id={id + '-number'}
-            value={valueForInput} // Use the specifically formatted value for the input
+            value={valueForInput} 
             onChange={handleNumberInputChange} 
             min={String(min)}
             max={String(max)}
@@ -256,10 +257,10 @@ interface CalculationResults {
   estimatedTotalMonthlyTextMessagesProcessedByAI?: number;
 }
 
-type IndustryPresetValue = number | string; // Allow for string if some presets might have non-numeric defaults initially, though numbers are preferred.
+type IndustryPresetValue = number | string; 
 
 type IndustryPreset = {
-  [key: string]: IndustryPresetValue; // General case for all properties
+  [key: string]: IndustryPresetValue; 
   avgRevenuePerSale: number;
   monthlyVoiceCalls: number;
   avgMissedVoiceCallsDaily: number;
@@ -640,7 +641,7 @@ function OmnichannelAiRoiCalculator() {
     return `Enhancement Focus: AI handles ${handlingPercentage}% of interactions. Human agents manage the remaining ${100 - handlingPercentage}%, likely complex cases. Savings from increased efficiency.`;
   };
 
-  const chartData: Array<{[key: string]: string | number}> = [ // More specific type for chartData elements
+  const chartData: Array<{[key: string]: string | number}> = [ 
     { 
       name: 'Monthly Costs', 
       'Current Human Cost': results.currentHumanCostChart || 0, 
@@ -648,8 +649,11 @@ function OmnichannelAiRoiCalculator() {
       'Human Labor w/ AI': results.humanWithAICostChart || 0 
     },
   ];
+  // Conditionally add 'Net Monthly Benefit (Y1)' to chartData if it's positive and exists
   if(results.netBenefitChart && results.netBenefitChart > 0) { 
-    chartData[0]['Net Monthly Benefit (Y1)'] = results.netBenefitChart;
+    // Ensure the key is explicitly defined or handle it in a way TypeScript understands
+    const chartEntry = chartData[0] as any; // Use 'as any' for simplicity here, or define a stricter type for chartEntry
+    chartEntry['Net Monthly Benefit (Y1)'] = results.netBenefitChart;
   }
 
   // --- JSX Rendering ---
