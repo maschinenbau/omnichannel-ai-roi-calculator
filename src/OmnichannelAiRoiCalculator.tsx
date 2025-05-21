@@ -66,7 +66,6 @@ const RangeSlider: React.FC<RangeSliderProps> = ({ label, id, value, onChange, m
   const handleNumberInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     let newValue = Number(e.target.value);
     if (isNaN(newValue)) { 
-        // If input is not a number, revert to current numericValue by creating a synthetic event
         const syntheticEvent = { target: { value: String(numericValue) } } as ChangeEvent<HTMLInputElement>;
         onChange(syntheticEvent); 
         return;
@@ -77,15 +76,25 @@ const RangeSlider: React.FC<RangeSliderProps> = ({ label, id, value, onChange, m
     if (max !== undefined && newValue > Number(max)) {
         newValue = Number(max);
     }
-     // Create a synthetic event object for the onChange handler of the parent
     const syntheticEvent = { target: { value: String(newValue) } } as ChangeEvent<HTMLInputElement>;
     onChange(syntheticEvent); 
   };
   
-  let displayValueForInput = String(numericValue); // Default to string for input value
-
-  // The value prop for input type="number" should be a string for controlled components if you allow temporary non-numeric input,
-  // or always a number if you strictly control it. Given handleNumberInputChange, String(numericValue) is safer.
+  // Correctly format the value for the number input
+  let valueForInput: string;
+  if (unit.includes('$')) {
+    valueForInput = numericValue.toFixed(2); // Ensure 2 decimal places for currency for input
+  } else if (unit === '%') {
+    valueForInput = String(Math.round(numericValue)); // Round percentages for input
+  } else {
+     const numericStep = Number(step);
+     if (Number.isInteger(numericStep) || Number.isInteger(numericValue)) {
+        valueForInput = String(Math.round(numericValue));
+     } else {
+        const decimalPlaces = (String(step).split('.')[1] || '').length || 1;
+        valueForInput = numericValue.toFixed(decimalPlaces);
+     }
+  }
   
   return (
     <div className="mb-5"> 
@@ -110,7 +119,7 @@ const RangeSlider: React.FC<RangeSliderProps> = ({ label, id, value, onChange, m
           <input 
             type="number"
             id={id + '-number'}
-            value={displayValueForInput} 
+            value={valueForInput} // Use the specifically formatted value for the input
             onChange={handleNumberInputChange} 
             min={String(min)}
             max={String(max)}
@@ -247,7 +256,10 @@ interface CalculationResults {
   estimatedTotalMonthlyTextMessagesProcessedByAI?: number;
 }
 
+type IndustryPresetValue = number | string; // Allow for string if some presets might have non-numeric defaults initially, though numbers are preferred.
+
 type IndustryPreset = {
+  [key: string]: IndustryPresetValue; // General case for all properties
   avgRevenuePerSale: number;
   monthlyVoiceCalls: number;
   avgMissedVoiceCallsDaily: number;
@@ -628,7 +640,7 @@ function OmnichannelAiRoiCalculator() {
     return `Enhancement Focus: AI handles ${handlingPercentage}% of interactions. Human agents manage the remaining ${100 - handlingPercentage}%, likely complex cases. Savings from increased efficiency.`;
   };
 
-  const chartData = [
+  const chartData: Array<{[key: string]: string | number}> = [ // More specific type for chartData elements
     { 
       name: 'Monthly Costs', 
       'Current Human Cost': results.currentHumanCostChart || 0, 
@@ -636,7 +648,7 @@ function OmnichannelAiRoiCalculator() {
       'Human Labor w/ AI': results.humanWithAICostChart || 0 
     },
   ];
-  if(results.netBenefitChart && results.netBenefitChart > 0) { // Check if netBenefitChart exists and is positive
+  if(results.netBenefitChart && results.netBenefitChart > 0) { 
     chartData[0]['Net Monthly Benefit (Y1)'] = results.netBenefitChart;
   }
 
@@ -751,7 +763,6 @@ function OmnichannelAiRoiCalculator() {
                     <RangeSlider label="AI Handling Percentage" id="aiHandlingPercentage" value={aiHandlingPercentage} onChange={handleSliderChange(setAiHandlingPercentage)} min="0" max="100" step="5" unit="%" helpText="Portion of total interactions AI attempts to handle."/>
                     <RangeSlider label="AI Autonomy (Voice Calls)" id="aiAutonomyVoice" value={aiAutonomyVoice} onChange={handleSliderChange(setAiAutonomyVoice)} min="0" max="100" step="5" unit="%" helpText="% of AI-handled calls resolved end-to-end."/>
                     <RangeSlider label="AI Autonomy (Text Interactions)" id="aiAutonomyText" value={aiAutonomyText} onChange={handleSliderChange(setAiAutonomyText)} min="0" max="100" step="5" unit="%" helpText="% of AI-handled texts resolved end-to-end."/>
-                    {/* Updated H3 styling for "AI Performance Improvements" */}
                     <h3 className="text-xl font-bold text-gray-800 mt-6 mb-3 border-t pt-4">AI Performance Improvements</h3>
                     <RangeSlider label="Improvement in Booking Rate (Voice AI)" id="aiVoiceBookingRateImprovement" value={aiVoiceBookingRateImprovement} onChange={handleSliderChange(setAiVoiceBookingRateImprovement)} min="0" max="100" step="1" unit="%"/>
                     <RangeSlider label="Improvement in Show-Up Rate (Voice AI)" id="aiVoiceShowUpRateImprovement" value={aiVoiceShowUpRateImprovement} onChange={handleSliderChange(setAiVoiceShowUpRateImprovement)} min="0" max="100" step="1" unit="%"/>
@@ -784,7 +795,7 @@ function OmnichannelAiRoiCalculator() {
                   <CardContent className="text-center space-y-4 px-6 py-4">
                     <div>
                       <div className="text-sm font-medium text-gray-600 mb-1">Potential Annual Net Gain (Year 1)</div>
-                      <div className={`text-4xl font-extrabold ${results.annualNetGainY1 >= 0 ? 'text-lime-600' : 'text-red-600'}`}>
+                      <div className={`text-4xl font-extrabold ${(results.annualNetGainY1 || 0) >= 0 ? 'text-lime-600' : 'text-red-600'}`}>
                         {safeLocaleString(results.annualNetGainY1 || 0, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
                       </div>
                       <p className="text-xs text-gray-500 mt-1">(Annual Labor Savings + Added Revenue - Annual AI Cost Y1)</p>
@@ -792,7 +803,7 @@ function OmnichannelAiRoiCalculator() {
                     <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-300">
                        <div>
                          <div className="text-xs font-medium text-gray-600 mb-1">Estimated Annual ROI (Y1)</div>
-                         <div className={`text-3xl font-bold ${results.annualROI >= 0 ? 'text-lime-600' : 'text-red-600'}`}>
+                         <div className={`text-3xl font-bold ${(results.annualROI || 0) >= 0 ? 'text-lime-600' : 'text-red-600'}`}>
                            {isFinite(results.annualROI || 0) ? safeLocaleString(results.annualROI || 0, { style: 'percent', maximumFractionDigits: 0 }) : ( (results.netMonthlyBenefitY1 || 0) > 0 ? '∞%' : 'N/A')}
                          </div>
                        </div>
@@ -836,7 +847,7 @@ function OmnichannelAiRoiCalculator() {
                           <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0"/>
                           <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                           <YAxis tickFormatter={(value) => `$${safeLocaleString(value, {style: 'currency', currency: 'USD', maximumFractionDigits: 0})}`} tick={{ fontSize: 10 }} />
-                          <Tooltip formatter={(value: number) => [`$${safeLocaleString(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, null]} cursor={{ fill: 'rgba(230, 230, 230, 0.3)' }} />
+                          <Tooltip formatter={(value: number | string | Array<number | string>, name: string) => [`$${safeLocaleString(typeof value === 'number' ? value : 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, name]} cursor={{ fill: 'rgba(230, 230, 230, 0.3)' }} />
                           <Legend wrapperStyle={{ fontSize: "12px", paddingTop: '10px' }} />
                           <Bar dataKey="Current Human Cost" fill="#4B5563" radius={[4, 4, 0, 0]} /> 
                           <Bar dataKey="AI Cost (Y1 Eff.)" fill="#A3E635" radius={[4, 4, 0, 0]} /> 
