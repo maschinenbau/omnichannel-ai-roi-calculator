@@ -18,7 +18,8 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "allowJs": true // Added to allow JS files if any exist, though we're moving to TSX
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
