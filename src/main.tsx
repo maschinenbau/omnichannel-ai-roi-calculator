@@ -1,3 +1,6 @@
+// File: src/main.tsx
+// Purpose: Entry point of your React application.
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';      // Correctly imports the default export from App.tsx
